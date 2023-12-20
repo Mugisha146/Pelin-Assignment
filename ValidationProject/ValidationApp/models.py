@@ -3,7 +3,8 @@ from django.core.validators import MinLengthValidator, RegexValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 import datetime
-import re
+from django.db import models
+import logging
 
 
 def validate_birth_date(birth_date):
@@ -90,7 +91,8 @@ class Participant(models.Model):
 
 
 class Vehicle(models.Model):
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, blank=True, null=True)
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, blank=True, null=True,
+                                    help_text=_('If this is the first time creating a participant, leave it empty.'))
     PLATE_TYPE_CHOICES = [
         ('GR', 'Government (GR)'),
         ('IT', 'Import Temporary (IT)'),
@@ -117,3 +119,24 @@ class Vehicle(models.Model):
 
     def __str__(self):
         return f"{self.plate_type} {self.plate_number} ({self.car_model})"
+
+
+
+
+logger = logging.getLogger('django')
+
+class YourModel(models.Model):
+    # Your model fields go here
+
+    def save(self, *args, **kwargs):
+        # Log the action before saving
+        action = 'changed' if self.pk else 'added'
+        logger.info(f"Object {self} {action}")
+
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Log the action before deleting
+        logger.info(f"Object {self} deleted")
+
+        super().delete(*args, **kwargs)

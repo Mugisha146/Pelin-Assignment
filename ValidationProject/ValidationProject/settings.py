@@ -1,6 +1,10 @@
-import os
-from pathlib import Path
 
+from pathlib import Path
+import os
+import sys
+import logging
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = '_bs3b66ks+=k)6=+z_x4-u4(e!-^tcc7wdi^75*%qv$nd1xzt9'
@@ -29,6 +33,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'ValidationApp.middleware.LogMiddleware',
 ]
 
 ROOT_URLCONF = 'ValidationProject.urls'
@@ -82,3 +87,65 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+# Log settings
+LOGGING_DIR = os.path.join(BASE_DIR, 'logs')  # Create a 'logs' directory in your project
+os.makedirs(LOGGING_DIR, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGGING_DIR, 'debug.log'),
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGGING_DIR, 'error.log'),
+        },
+        'logstash': {
+            'level': 'DEBUG',
+            'class': 'logstash.TCPLogstashHandler',
+            'host': 'localhost',  # Logstash server host
+            'port': 5959,         # Logstash server port
+            'version': 1,
+            'message_type': 'django',
+            'fqdn': False,
+            'tags': ['django'],
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file', 'logstash'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['error_file', 'logstash'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
+
+# Log user visits
+LOGGING_MIDDLEWARE = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': ['file', 'logstash'],
+    'loggers': {
+        'django.request': {
+            'handlers': ['file', 'logstash'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
+if 'test' in sys.argv:
+    # Don't log to logstash during tests
+    LOGGING_MIDDLEWARE['handlers'] = ['file']
+
+LOGGING['loggers'].update(LOGGING_MIDDLEWARE['loggers'])
